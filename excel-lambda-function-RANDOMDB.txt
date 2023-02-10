@@ -1,0 +1,36 @@
+/*
+Type: Function
+
+Name: RANDOMDB
+
+Description: Creates a random array of combinations of items from each column in member_array
+The resulting array has 'COLUMNS(member_array)' columns and 'rows' rows.
+
+Parameters:
+- Param1: An (optionally vertically ragged) array of dimension members where
+each column represents a different variable and the values in that column are the factors of that variable
+- rows: The number of rows to create in the random array
+
+Author: Owen Price
+
+Created: 2022-12-13
+*/
+
+RANDOMDB = LAMBDA(member_array, rows,
+    LET(
+        t, member_array,
+        c, COLUMNS(t),
+        IF(
+            c = 1,
+            "Not enough columns",
+            LET(
+                seq, SEQUENCE(c - 2, , 3),
+                nonblank, LAMBDA(c, FILTER(INDEX(t, , c), INDEX(t, , c) <> "")),
+                first, LAMB.CROSSJOIN(nonblank(1), nonblank(2)),
+                all, IF(c = 2, first, REDUCE(first, seq, LAMBDA(a, b, LAMB.CROSSJOIN(a, nonblank(b))))),
+                rand, CHOOSEROWS(all, RANDARRAY(rows, 1, 1, ROWS(all))),
+                rand
+            )
+        )
+    )
+);

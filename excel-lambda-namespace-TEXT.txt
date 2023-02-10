@@ -1,0 +1,150 @@
+/*
+Type: Function|Namespace
+
+Name: The name of the function or namespace
+
+Description: The description of the function or namespace
+
+Parameters:
+- Param1: Description of parameter 1 including expected type
+- Param2: Description of parameter 2 including expected type
+- [Param3]: Description of optional parameter 3 including default
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*
+Gets all substrings of exactly length n from string
+*/
+SUBSTRINGS = LAMBDA(length,
+    LAMBDA(string,
+        LET(
+            substrings,MID(string,SEQUENCE(LEN(string)),length),
+            FILTER(substrings,LEN(substrings)=length)
+        )
+    )
+);
+
+
+/*
+Determines if a single character is a letter
+*/
+LETTER = LAMBDA(char, 
+    LET(
+        upper,UPPER(char),
+        is_letter,AND(CODE(upper)>64,CODE(upper)<91),
+        is_letter
+    )
+);
+
+
+/*
+Determines if a single character is a number
+
+Could also be ISNUMBER(NUMBERVALUE(char))
+
+Needs check that char is a single character
+*/
+NUMBER = LAMBDA(char, 
+    LET(
+        is_number,AND(CODE(char)>47,CODE(char)<58),
+        is_number
+    )
+);
+
+
+/*
+Determines if a single character is a parenthesis
+*/
+PARENTHESIS = LAMBDA(char, 
+    LET(
+        is_paren,AND(CODE(char)>39,CODE(char)<42),
+        is_paren
+    )
+);
+
+/*
+Determines if a single character is a space
+
+32 - normal space
+160 - non-breaking space
+*/
+SPACE = LAMBDA(char, 
+    LET(
+        codes,{32,160},
+        is_space,list.CONTAINS(CODE(char))(codes),
+        is_space
+    )
+);
+
+/*
+Determines if a single character is a parenthesis
+
+91,93,123,125
+*/
+BRACKET = LAMBDA(char, 
+    LET(
+        codes,{91,93,123,125},
+        is_bracket,list.CONTAINS(CODE(char))(codes),
+        is_bracket
+    )
+);
+
+
+/*
+Splits a string into an array of characters
+*/
+CHARACTERS = LAMBDA(string,
+    text.SUBSTRINGS(1)(string)
+);
+
+/*
+Applies the function to the characters in the string
+*/
+WHERE = LAMBDA(string, function, 
+    MAP(text.CHARACTERS(string), function)
+);
+
+
+/*
+Determines if a sequence of characters could be a USA zip code
+
+pass an address as the string and list.FIRST, list.LAST, list.ROW(n) or list.JOIN([delimiter]) as the function
+*/
+ZIPCODES = LAMBDA(string,[function],
+    LET(
+        substrings,text.SUBSTRINGS(5)(string),
+        five_digits,LEN(IFERROR(VALUE(substrings),0))=5,
+        zips, FILTER(substrings,five_digits),
+        transformed_zips,IF(ISOMITTED(function),zips,function(zips)),
+        transformed_zips
+    )
+);
+
+
+/*
+Removes the characters from the string for which the mapped function returns TRUE
+*/
+REMOVE = LAMBDA(string,function,
+    LET(
+        chars,text.CHARACTERS(string),
+        filtered_chars,FILTER(chars,NOT(text.WHERE(string,function))),
+        joined_chars,TEXTJOIN("",FALSE,filtered_chars),
+        joined_chars
+    )
+);
+
+
+/*
+Removes the characters from the string for which the mapped function returns FALSE
+*/
+GET = LAMBDA(string,function,
+    LET(
+        chars,text.CHARACTERS(string),
+        filtered_chars,FILTER(chars,text.WHERE(string,function)),
+        joined_chars,TEXTJOIN("",FALSE,filtered_chars),
+        joined_chars
+    )
+);

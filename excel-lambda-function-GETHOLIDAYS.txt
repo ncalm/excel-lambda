@@ -1,0 +1,101 @@
+/*
+Type: Function
+
+Name: GETHOLIDAYS
+
+Description: Determines the exact holiday dates for the requested year
+according to the relative and fixed holiday descriptions as described below.
+
+Please note that you must provide relative_holidays or fixed_holidays or both. If you provide neither, the function will return #NA!
+
+Parameters:
+- year: The four-digit year for which we want to calculate holidays according to the provided lists.
+
+- [relative_holidays]: OPTIONAL only if fixed_holidays is provided - a four-column array of data where the columns are:
+    1. The Nth week of the month. Positive non-zero integers from 1 to 5 represent the nth week in the month specified in the third column. If 0, this represents the last week of the month prior to the month in the month column. So, {0,2,6,"Last Monday in May"} is the last Monday in the month prior to June. Similarly, {-1,2,6,"Second-to-last Monday in May"} will be the Monday prior to the last Monday in the month prior to June
+    2. The weekday of the Nth week of the month. The week is Sunday=1, Monday=2, ... , Saturday=7
+    3. The number from 1 to 12 representing the month. See note under column 1 regarding "Last X of Y"
+    4. The description of the holiday
+    
+- [fixed_holidays]: OPTIONAL only if relative_holidays is provided - a four-column array of data where the columns are:
+    1. The month of the holiday
+    2. The day of the holiday
+    3. How to shift the date of the observed holiday if the official holiday date lands on a weekend. This column should have one of the following values:
+
+      1	"Split" - if the official holiday falls on a Saturday, the observed holiday should be on Friday. If the official holiday falls on a Sunday, the observed holiday should be on Monday.
+      2	"Forward" - if the official holiday falls on either Saturday or Sunday, the observed holiday should be on Monday.
+      3	"Backward" - if the official holiday falls on either Saturday or Sunday, the observed holiday should be on Friday.
+      0	"None" - the observed holiday should be on whatever day the official holiday falls.
+
+      Note that there is special behavior if the holiday represents the second in a so-called "double" holiday (Boxing Day is the 2nd day in a double holiday of Christmas + Boxing Day in the UK).
+
+      Generally, you should define the option above the same way for both holidays in a double holiday. That said, if the second day of {Christmas,Boxing Day} falls on a Monday, and the option is "forward", then the function will move Boxing Day to Tuesday (because Christmas Day will have been moved from Sunday to Monday).
+
+      However, if Boxing Day falls on Monday and the option is "backward", then Christmas will be moved to Friday and Boxing Day will remain on Monday (since it is not a weekend).
+
+      If Christmas falls on Saturday and Boxing Day on Sunday and the option is "forward", then the observed holidays will be Monday and Tuesday. If "backward", then the observed holidays will be Thursday and Friday. If "split", then Friday and Monday and if "none", then the holidays will not be moved.
+
+    4. The description of the holiday
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+GETHOLIDAYS =LAMBDA(year, [relative_holidays], [fixed_holidays],
+    IF(AND(ISOMITTED(relative_holidays),ISOMITTED(fixed_holidays)),NA(),
+        LET(
+            _yr,IF(OR(NOT(ISNUMBER(year)),LEN(year)<>4),NA(),year),
+            _cleanup,LAMBDA(hols,IFS(
+                                    ISOMITTED(hols),{0,0,0,"None"},
+                                    COLUMNS(hols)<>4,NA(),
+                                    TRUE,FILTER(hols,INDEX(hols,,4)<>"")
+                                  )
+                     ),
+                     
+            /*Relative holidays*/
+            _rh,_cleanup(relative_holidays),
+            _rhm, INDEX(_rh, , 3),
+            _rd, DATE(_yr, _rhm, 1 + 7 * INDEX(_rh, , 1)) - WEEKDAY(DATE(_yr, _rhm, 8 - INDEX(_rh, , 2))),
+            _r_out, CHOOSE({1, 2}, _rd, INDEX(_rh, , 4)),
+            
+            /*Fixed holidays*/
+            _fh,_cleanup(fixed_holidays),
+            _doubles,LAMBDA(hols,NOT(ISERROR(XMATCH(hols-1,hols)))),
+
+            /*{option,weekday,weekend increment,double increment}*/
+            _defincr,{1,7,-1,2;
+                    1,1,1,1;
+                    1,2,0,1;
+                    2,7,2,3;
+                    2,1,1,2;
+                    2,2,0,1;
+                    3,7,-1,-2;
+                    3,1,-2,-3;
+                    3,2,0,0;
+                    0,7,0,0;
+                    0,1,0,0},
+
+            _fd_orig,DATE(_yr,INDEX(_fh,,1),INDEX(_fh,,2)),
+            _get_incrs,LAMBDA(col,XLOOKUP(INDEX(_fh,,3)&"-"&WEEKDAY(_fd_orig),INDEX(_defincr,,1)&"-"&INDEX(_defincr,,2),INDEX(_defincr,,col),0)),
+            _fd,IF(
+                  _doubles(_fd_orig),_fd_orig +  _get_incrs(4),
+                  _fd_orig + _get_incrs(3)
+                ),
+            _f_out, CHOOSE({1, 2}, _fd, INDEX(_fh,,4)),
+            _out, MAKEARRAY(
+                ROWS(_r_out) + ROWS(_f_out),
+                2,
+                LAMBDA(r, c,
+                    IF(
+                        r <= ROWS(_r_out),
+                        INDEX(_r_out, r, c),
+                        INDEX(_f_out, r - ROWS(_r_out), c)
+                    )
+                )
+            ),
+            _output,SORT(FILTER(_out,INDEX(_out,,2)<>"None")),
+            _output
+        )
+    )
+);

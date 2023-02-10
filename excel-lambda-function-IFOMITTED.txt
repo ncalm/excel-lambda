@@ -1,0 +1,21 @@
+/*
+Type: Function
+
+Name: IFOMITTED
+
+Description: IFOMITTED is to ISOMITTED as IFERROR is to ISERROR
+
+Parameters:
+- arg: The argument of a lambda function which we want to check whether it has been omitted or not.
+- then: The value to return if arg has been omitted.
+- [else]: If arg is not omitted, but we don't want to simply return arg, but some function of arg or any
+other expression, we can provide the expression to this optional else parameter.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+IFOMITTED = LAMBDA(arg, then, [else],
+    LET(_else, IF(ISOMITTED(else), arg, else), IF(ISOMITTED(arg), then, _else))
+);

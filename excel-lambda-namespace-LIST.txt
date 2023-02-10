@@ -1,0 +1,107 @@
+/*
+Type: Namespace
+
+Name: LIST
+
+Description: Functions for frequently used list operations
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*
+Type: Function
+
+Name: ROW
+
+Description: Returns a single row from a list by index.
+
+To return row 5 from array A2:B20:
+
+=LIST.ROW(5)(A2:B20)
+
+Parameters:
+- row: The row index to return.
+- array: The list.
+
+Author: Owen Price
+*/
+ROW = LAMBDA(row,
+    LAMBDA(array,INDEX(array,row,))
+);
+
+/*
+Type: Function
+
+Name: LIST.FIRST
+
+Description: Gets the first row from a list.
+
+Parameters:
+- array: The list.
+
+Author: Owen Price
+*/
+FIRST = LAMBDA(array,
+    LIST.ROW(1)(array)
+);
+
+/*
+Type: Function
+
+Name: LIST.LAST
+
+Description: Gets the last row from a list.
+
+Parameters:
+- array: The list.
+
+Author: Owen Price
+*/
+LAST = LAMBDA(array,
+    LIST.ROW(ROWS(array))(array)
+);
+
+/*
+Type: Function
+
+Name: LIST.CONTAINS
+
+Description: Returns TRUE if the item is in the array.
+
+e.g. =LIST.CONTAINS(6)(SEQUENCE(5)) == FALSE
+
+Parameters:
+- item: The item to test for.
+- array: The list.
+
+Author: Owen Price
+*/
+CONTAINS = LAMBDA(item,
+    LAMBDA(array,NOT(ISERROR(XMATCH(item,array))))
+);
+
+/*
+Type: Function
+
+Name: LIST.JOIN
+
+Description: Rolls a list into a single value, optionally separated
+
+e.g. =LIST.JOIN("|")({"Hi","There","Friend"}) == "Hi|There|Friend"
+
+Parameters:
+- [delimiter]: The optional delimiter. Default = ", ".
+- array: The list.
+
+Author: Owen Price
+*/
+JOIN = LAMBDA([delimiter],
+    LET(
+        delim,IF(ISOMITTED(delimiter),", ",delimiter),
+        LAMBDA(array,
+            TEXTJOIN(delim, FALSE, array)
+        )
+    )
+);

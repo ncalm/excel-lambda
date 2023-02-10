@@ -1,0 +1,31 @@
+/*
+Type: Function
+
+Name: FIBONACCI
+
+Description:
+Produces a sequence of numbers where n_i = n_(i-1) + n_(i-2)
+
+We can optionally provide first and second values in the sequence.
+
+Otherwise they are assumed to be 1 and 1.
+
+Parameters:
+- seq_length: The length of the sequence of Fibonacci numbers to produce.
+- [first]: The value from which the sequence should start. Default = 1.
+- [second]: The second value in the sequence. Default = 1.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+FIBONACCI =LAMBDA(seq_length,[first],[second],
+    LET(
+        one,IF(ISOMITTED(first),1,first),
+        two,IF(ISOMITTED(second),1,second),
+        idx,SEQUENCE(seq_length-2),
+        REDUCE(VSTACK(one,two),idx,
+            LAMBDA(a,b,VSTACK(a, CHOOSEROWS(a, -2) + CHOOSEROWS(a, -1))))
+    )
+);

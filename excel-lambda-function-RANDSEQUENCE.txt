@@ -1,0 +1,29 @@
+/*
+Type: Function
+
+Name: RANDSEQUENCE
+
+Description: Creates a sequence of random numbers.
+Note: the minimum difference between one row and the next is assumed to be 1.
+
+Parameters:
+- numbers: the length of the sequence to be produced
+- max_between: the maximum difference between consecutive integers
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+RANDSEQUENCE =LAMBDA(numbers,max_between,
+  LET(
+    seq,SEQUENCE(numbers),
+    SCAN(
+      RANDBETWEEN(0,max_between),
+      seq,
+      LAMBDA(a,b,
+        a+RANDBETWEEN(1,max_between)
+      )
+    )
+  )
+);

@@ -1,0 +1,95 @@
+/*
+Type: Function
+
+Name: CONVERTRECIPE
+
+Description: 
+Converts a recipe ingredient from one unit of measure to another, bearing in mind 
+the following assumptions. In an example of "300ml vegetable oil":
+
+1) The recipe ingredient (e.g. "300ml vegetable oil") begins with the volume 
+of the ingredient (300) and is immediately followed by an optional unit of measure ("ml")
+
+2) There is a non-breaking space (CODE=160) between the measurement ("300ml") 
+and the description of the ingredient ("vegetable oil")
+
+Parameters:
+- ingredient: A text string meeting the requirements laid out in the description above.
+- convert_to: A unit of measure to convert the ingredient to.
+
+Author: Owen Price
+
+Created: 2023-02-09
+
+More info: https://www.flexyourdata.com/blog/excel-lambda-convertrecipe-convert-recipe-ingredients-to-different-units-in-excel/
+*/
+
+CONVERTRECIPE = LAMBDA(ingredient,convert_to,
+    LET(
+        /*shorter name for ingredient, for simplicity*/
+        d,ingredient,
+
+        /*index of the character positions in the ingredient text*/
+        /*not necessary - only used once*/
+        /*idx,SEQUENCE(LEN(d)),*/
+
+        /*the character array of the ingredient text*/
+        chars,MID(d,SEQUENCE(LEN(d)),1),
+
+        /*the position of the first non-breaking space in the character array
+        This appears immediately after the measurement*/
+        nbs_pos,XMATCH(160,CODE(chars)),
+
+        /*last position of measurement*/
+        measurement_idx,SEQUENCE(nbs_pos-1),
+
+        /*The characters up to the character before the non-breaking space*/
+        up_to_nbs,INDEX(chars,measurement_idx),
+
+        /*A lambda to simplify a text join with no delimiter*/
+        /*NOT NECESSARY - USE CONCAT INSTEAD!*/
+        /*join,LAMBDA(arr,TEXTJOIN("",TRUE,arr)),*/
+
+        /*the original measurement of the ingredient text*/
+        measurement,CONCAT(up_to_nbs),
+
+        /*An array indicating which of the measurement characters are numbers*/
+        nums,ISNUMBER(VALUE(up_to_nbs)),
+
+        /*the position of the right-most number (with everything prior assumed
+        to be part of the measurement)*/
+        rightmost_number_pos,MAX(FILTER(measurement_idx,nums)),
+        
+        /*An array of the numbers in the measurement*/
+        numbers_array,FILTER(up_to_nbs,measurement_idx<=rightmost_number_pos),
+
+        /*An array of the non numbers in the measurement*/
+        non_numbers_array,FILTER(up_to_nbs,measurement_idx>rightmost_number_pos),
+
+        /*The value of the measurement*/
+        numbers,NUMBERVALUE(CONCAT(numbers_array)),
+
+        /*The unit of measure (uom) of the measurement*/
+        non_numbers,IFERROR(TRIM(CONCAT(non_numbers_array)),""),
+
+        /*Some text conversions to ensure we pass the right text to the convert function
+        For example, if we pass "oz", we are asking for Fluid ounce
+        Similarly, if we want solid ounce, we must pass "ozm"*/
+        conversions,{"fl oz","oz";"oz","ozm";"tbsp","tbs"},
+
+        /*A lambda to apply a standardize a uom if there's a conversion available*/
+        standardize_uom,LAMBDA(uom,XLOOKUP(uom,INDEX(conversions,,1),INDEX(conversions,,2),uom)),
+
+        /*Try to conver the measurement to the new UoM*/
+        converted,CONVERT(numbers,standardize_uom(non_numbers),standardize_uom(convert_to)),
+
+        /*Some units of measurement aren't available, so we check if converted is an error
+        and if it is, just use the original measurement text*/
+        new_measurement,ROUND(IFERROR(converted,numbers),1)&" "&IF(ISERROR(converted),non_numbers,convert_to),
+
+        /*Finally, substitute the old measurement with the new measurement*/
+        output, SUBSTITUTE(d,measurement,new_measurement),
+
+        output
+    )
+);

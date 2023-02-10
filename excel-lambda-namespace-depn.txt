@@ -1,0 +1,262 @@
+/*
+Type: Namespace
+
+Name: depn
+
+Description: Contains functions used in the creation of depreciation schedules
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+namespace_author = "Owen Price";
+namespace_author_url = "https://www.flexyourdata.com";
+namespace_description="This namespace provides functionality for building depreciation schedules";
+schedule_demo = depn.schedule(100000,10000,6,2015,depn.db,true,depn.byyear,true);
+schedule_header = {"Period labels","Periods","Depreciation","Accumulated Depreciation","Depreciated Asset Value"};
+
+
+/*
+Author: Owen Price
+https://www.flexyourdata.com
+2022-08-15
+
+Updated with bymonth and byyear functions on 2022-08-17
+
+
+For explanation:
+https://www.flexyourdata.com/blog/excel-lambda-depn-schedule-create-a-depreciation-schedule-in-excel-with-one-function/
+
+Please be sure to import these functions into a namespace called "depn".
+
+NOTE: waterfall function has a dependency on the META namespace:
+https://gist.github.com/ncalm/643ebc018946542f8642c074043e510a
+*/
+
+
+sln = LAMBDA(cost,salvage,life,periods,
+    IF(periods=0,0,SLN(cost,salvage,life))
+);
+
+db = LAMBDA(cost,salvage,life,periods,
+    DB(cost,salvage,life,periods)
+);
+
+ddb = LAMBDA(cost,salvage,life,periods,
+    DDB(cost,salvage,life,periods)
+);
+
+syd = LAMBDA(cost,salvage,life,periods,
+    SYD(cost,salvage,life,periods)
+);
+
+
+bymonth = LAMBDA(periods,start,[return_metadata],
+
+    LET(
+        _return_metadata,IF(ISOMITTED(return_metadata),FALSE,return_metadata),
+        _metadata,META.DATA("depn.bymonth",
+                            "Return a list of months as period labels to depn.schedule",
+                            depn.namespace_author),
+        IF(_return_metadata,_metadata,DATE(YEAR(start),MONTH(start)+periods,DAY(start)))
+    )
+    
+);
+
+byyear = LAMBDA(periods,start,[return_metadata],
+
+    LET(
+        _return_metadata,IF(ISOMITTED(return_metadata),FALSE,return_metadata),
+        _metadata,META.DATA("depn.byyear",
+                            "Return a list of years as period labels to depn.schedule",
+                            depn.namespace_author),
+        IF(_return_metadata,_metadata,start+periods)
+        
+    )
+
+);
+
+
+schedule = LAMBDA(cost,salvage,periods,start,depn_fn,[vertical],[period_fn],[return_header],
+    LET(
+        _v,IF(ISOMITTED(vertical),FALSE,vertical),
+        _rh,IF(ISOMITTED(return_header),TRUE,return_header),
+        _pfn,IF(ISOMITTED(period_fn),depn.byyear,period_fn),
+        _periods,SEQUENCE(periods+1,,0),
+        _periodlabels,_pfn(_periods,start),
+        _depr,IFERROR(depn_fn(cost,salvage,periods,_periods),0),
+        _acc,SCAN(0,_depr,LAMBDA(a,b,a+b)),
+        _dav,cost-_acc,
+        _header,depn.schedule_header,
+        _array,CHOOSE({1,2,3,4,5},_periodlabels,_periods,_depr,_acc,_dav),
+        _array_with_header,MAKEARRAY(
+            periods+2,5,
+            LAMBDA(r,c,
+                IF(r=1,INDEX(_header,1,c),
+                INDEX(_array,r-1,c))
+            )
+        ),
+        _output,IF(_rh,_array_with_header,_array),
+        IF(_v,_output,TRANSPOSE(_output))
+    )
+);
+
+schedule_stack = LAMBDA(asset_purchases_table,depn_fn,[period_fn],
+
+    LET(
+        t, asset_purchases_table ,
+
+        PeriodFn, IF( ISOMITTED( period_fn ), depn.byyear , period_fn ),
+
+        RowIndex, SEQUENCE( ROWS( t ) ),
+
+        //shorthand for getting a cell's value from _t
+        GetVal, LAMBDA(row, LAMBDA( col , INDEX( t , row , col) ) ),
+
+        //returns the schedule for row b of the asset table
+        Schedule, LAMBDA(b,
+                LET(
+                    
+                    //get a lambda containing the row for this asset
+                    args,GetVal(b), 
+
+                    //create the schedule
+                    depn.schedule(
+                        args(2) , //cost
+                        args(3) , //salvage
+                        args(4) , //life
+                        args(5) , //start
+                        depn_fn , //depreciation calculation function
+                        TRUE , //vertical
+                        PeriodFn , //period function
+                        FALSE //return_header
+                    )
+                )
+
+        ),
+
+        //get the schedule for row 1 of the asset table
+        Schedule1, Schedule(1) ,
+
+        //Creates a 1-column array containing the asset name
+        AssetNameCol, LAMBDA( name , sch , EXPAND( name , ROWS(sch) , 1 , name )),
+
+        //prepare the column for the first asset
+        NameCol1 , AssetNameCol( GetVal(1)(1) , Schedule1 ),
+
+        //create the initial value for the REDUCE operation
+        Init , HSTACK( NameCol1 , Schedule1 ),
+
+        Schedules,
+            REDUCE(
+                Init , //initial array - the schedule for row 1
+                DROP( RowIndex , 1 ), //scan the rest of the rows
+                LAMBDA( a , b ,
+                    LET(
+
+                        //get the schedule for the current row/asset
+                        Schedule_b, Schedule(b), 
+
+                        //make a column containing the asset name with same number of rows as schedule
+                        NameCol_b, AssetNameCol( GetVal(b)(1) , Schedule_b ) ,
+
+                        VSTACK(
+                            a, //the previous schedules
+                            HSTACK( NameCol_b , Schedule_b ) //the current schedule
+                        )
+                    )
+                )
+            ),
+
+        Schedules
+    )
+
+);
+
+
+
+
+
+
+
+
+
+waterfall = LAMBDA(
+    asset_purchases_table,
+    depn_fn,
+    start,
+    end,
+    [period_fn],
+    [vertical],
+
+    LET(
+        omitted,ISOMITTED(asset_purchases_table)+ISOMITTED(depn_fn)+ISOMITTED(start)+ISOMITTED(end),
+        IF(omitted,"ERROR: asset_purchases_table, depn_fn, start or end is missing",
+        
+            LET(
+                t, asset_purchases_table ,
+
+                PeriodFn, IF( ISOMITTED( period_fn ), depn.byyear , period_fn ) ,
+
+                ReturnVertical, IF( ISOMITTED( vertical ), FALSE , vertical ) ,
+
+                //third param returns metadata about the function when TRUE (includes function name)
+                PeriodFnMD, PeriodFn(1,1,TRUE) ,
+
+                //total count of periods to include is the difference between start and end
+                //according to the period function given
+                PeriodCount, 
+                    SWITCH(
+                        INDEX(PeriodFnMD,1,2), //check the function name
+                        "depn.byyear", end-start+1,
+                        "depn.bymonth", DATEDIF(start,end,"m")+1, 
+                        -1
+                    ),
+
+                PeriodLabels, PeriodFn( SEQUENCE(PeriodCount,,0) , start ),
+
+                /*Returns a vertical table of stacked schedules for each asset
+                listed in the control table, with the asset name in the first
+                column. 
+                */
+                ScheduleStack, depn.schedule_stack( t , depn_fn , PeriodFn ),
+
+                /*
+                For each asset in the table, create an array _periodcount rows tall
+                and hstack them together, so we end with ROWS(_t) columns
+                */
+                Assets, CHOOSECOLS( t , 1 ) , 
+                GetAssetDepn,
+                    LAMBDA(x, 
+                        LET(
+                            FilteredDepn, FILTER( DROP( ScheduleStack , 0 , 1 ) , CHOOSECOLS( ScheduleStack , 1 ) = x ) ,
+                            XLOOKUP( PeriodLabels , CHOOSECOLS( FilteredDepn , 1 ) , CHOOSECOLS( FilteredDepn , 3 ) , 0 )
+                        )
+                    ) ,
+
+                Schedules, 
+                    REDUCE(
+                        GetAssetDepn( TAKE( Assets , 1 ) ),
+                        DROP( Assets , 1 ),
+                        LAMBDA(a,b,
+                            HSTACK( a , GetAssetDepn(b) )
+                        )
+                    ),
+
+                Totals, BYROW( Schedules , LAMBDA(r, SUM( r ) ) ),
+                
+                Result,
+                VSTACK(
+                    HSTACK( "" , TRANSPOSE( Assets ) , "Total" ),
+                    HSTACK( PeriodLabels , Schedules , Totals )
+                ),
+                IF( ReturnVertical , Result , TRANSPOSE( Result ) )
+            )
+        
+        )
+
+    )
+
+
+);

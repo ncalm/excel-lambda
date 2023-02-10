@@ -1,0 +1,154 @@
+/*
+Type: Namespace
+
+Name: OUTLIER
+
+Description: Functions for identifying outliers
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Creates a single-param lambda using the supplied value of stddevs
+
+e.g. Create a lambda function for calculating outlier thresholds
+which uses 2 standard deviations as the cut-off point.
+
+=outlier.thresholds(2)
+
+And to use that lambda function with a vector v:
+
+=outlier.thresholds(2)(v)
+
+*/
+THRESHOLDS =LAMBDA(std_devs,
+    LAMBDA(vector,
+        LET(
+            _v,FILTER(vector,NOT(ISERROR(vector))),
+            _fn,LAMBDA(i, AVERAGE(_v) + i * std_devs * STDEV.S(_v)),
+            VSTACK( _fn(-1) , _fn(1) )
+        )
+    )
+);
+
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Creates a single-parameter lambda that accepts a vector and outputs an array
+of three columns:
+1. [prefix]_data - The original data
+2. [prefix]_is_outlier - boolean indicating if a row is an outlier
+3. [prefix]_outlier_type - Text indicating if an outlier is either Low or High
+
+e.g. to create a lambda with a threshold defined at 2 standard deviations from the mean
+and whose output prefixes column headings with the word "wine"
+
+=outlier.test(2,"wine")
+
+And to then use that lambda against a vector v:
+
+=outlier.test(2,"wine")(v)
+*/
+TEST =LAMBDA(std_devs,[prefix],[return_header],
+  LET(
+    _prefix,IF(ISOMITTED(prefix),"test",prefix),
+    _return_header,IF(ISOMITTED(return_header),TRUE,return_header),
+    LAMBDA(vector,
+      LET(
+        _data,vector,
+        _thresholds,OUTLIER.THRESHOLDS(std_devs)(_data),
+        _low,INDEX(_thresholds,1,),
+        _high,INDEX(_thresholds,2,),
+        _is_outlier,NOT(LAMB.BETWEEN(_low,_high)(_data)),
+        _outlier_type,IFS( _data<_low,"Low" , _data>_high,"High" , TRUE,"" ),
+        _header,_prefix & {"_data","_is_outlier","_outlier_type"},
+        _output_no_header,HSTACK(_data,_is_outlier,_outlier_type),
+        _output_with_header,VSTACK(_header,_output_no_header),
+        IF(_return_header,_output_with_header,_output_no_header)
+      )
+    )
+  )
+);
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Creates a single-parameter lambda that accepts a vector and outputs an array
+of two columns:
+1. [prefix]_data_series - The vector passed into the function. 
+    The intention is to use this output column as a series in a chart.
+2. [prefix]_outlier_series - if the function has identified a data point as an outlier,
+    copy the value from the vector into this output column. If the data point is not an outlier, return NA().
+    The intention is to use this column as a second series in a chart to allow the outliers to be in a different
+    colour to the main data series.
+
+e.g. to create a lambda for producing chart data with a threshold defined at 2 standard deviations from the mean
+and whose output prefixes column headings with the word "wine"
+
+=outlier.chart(2,"wine")
+
+And to then use that lambda against a vector v:
+
+=outlier.chart(2,"wine")(v)
+*/
+CHART =LAMBDA(std_devs,[prefix],
+  LET(
+    _prefix,IF(ISOMITTED(prefix),"test",prefix),
+    LAMBDA(vector,
+      LET(
+        _data,vector,
+        _thresholds,OUTLIER.THRESHOLDS(std_devs)(_data),
+        _low,INDEX(_thresholds,1,),
+        _high,INDEX(_thresholds,2,),
+        _outlier,IF((_data<_low)+(_data>_high),_data,NA()),
+        _header,_prefix & {"_data_series","_outlier_series"},
+        _output_no_header,HSTACK(_data,_outlier),
+        _output_with_header,VSTACK(_header,_output_no_header),
+        _output_with_header
+      )
+    )
+  )
+);
+
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Applies a collection of transformation functions to a vector
+and then applies a "standard deviation test" to each transformed vector
+
+e.g. to transform the wine vector by SQRT and LN and test each using outliers outside 3 stddevs
+
+=OUTLIER.TESTS(wine, 3, LAMB.FUNCS(LAMB.SQRT, LAMB.LN), "wine")
+
+*/
+TESTS =LAMBDA(vector,std_devs,transform_fns,[prefix],
+  LET(
+    _v,SORT(vector),
+
+    _fn_count,ROWS(transform_fns),
+    
+    _prefix,IF(ISOMITTED(prefix),"test",prefix),
+
+    /*produces an array with ROWS(_v) rows and 1 + ROWS(transform_fns) columns
+    the original vector is in the first column and each transform_fn constitutes an additional column*/
+    _transformed, LAMB.TRANSFORM(_v, transform_fns),
+    
+    /*Returns a 'base lambda' configured with the std devs and column prefix' - this will be used for applying the tests to the various transformed columns*/
+    _base_fn, OUTLIER.TEST(std_devs,_prefix),
+
+    /*Now we just apply the base function to each column in _transformed and return the hstacked array*/
+    _tested, LAMB.BYCOL(_transformed, _base_fn),
+
+    _tested
+  )
+);

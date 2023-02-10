@@ -1,0 +1,149 @@
+/*
+Type: Namespace
+
+Name: KNN
+
+Description: Contains functions for classification using the K-Nearest Neighbors algorithm
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*
+KNN
+
+Returns the classification of an unknown observation using known observations in a training set. 
+
+Inputs:
+- x - an observation (row) in need of classification. This is an array of numerical measurements about an observation which you want to classify. This is one row and one or more columns. 
+
+- trn - an array of training data which is already classified. This array will have COLUMNS(x) + 1 columns. The additional column is because the training set includes a column on the right for the classification of each row. In the example below, the species of the flower. 
+
+- k - the number of observations in the training set to use to determine the class of the observation x. For example, if k=5, then the function will use the 5 observations (rows) in the training set which are closest to the observation x in order to determine to which class x should belong.
+
+- [p] - the p-value passed to the MINKOWSKI function if a distance function is not provided to the distance_fn parameter.
+
+- [distance_fn] - the distance function to use in the calculation. If omitted, then the provided p-value (or 2, if p is omitted) is passed to the MINKOWSKI function. 
+
+p=1 is equivalent to distance_fn=MANHATTAN
+P=2 is equivalent to distance_fn=EUCLIDEAN
+
+To classify vector x using training array Y and scalar k:
+
+For Euclidean distance, either:
+=KNN(x,trn,k,2)
+or
+=KNN(x,trn,k,,EUCLIDEAN)
+
+For MANHATTAN distance, either:
+=KNN(x,trn,k,1)
+or
+=KNN(x,trn,k,,MANHATTAN)
+
+For CHEBYSHEV
+=KNN(x,trn,k,,CHEBYSHEV)
+
+For other values of p:
+=KNN(x,trn,k,p)
+*/
+
+KNN = LAMBDA(x, trn, k, [p], [distance_fn],
+    LET(
+        _p,IF(ISOMITTED(p),2,p),
+        _fn,IF(ISOMITTED(distance_fn),KNN.MINKOWSKI(_p),distance_fn),
+        _trnc, COLUMNS(trn),
+        _X, INDEX(trn, , 1) : INDEX(trn, , _trnc - 1),
+        _y, INDEX(trn, , _trnc),
+        _br, BYROW(_X, LAMBDA(r,_fn(r,x))),
+        _f, FILTER(_y, _br <= SMALL(_br, k)),
+        _fs, KNN.FREQUENCYTABLE(_f),
+        _output,INDEX(_fs, 1, 1),
+        _output
+    )
+);
+
+/*
+
+MINKOWSKI
+
+Returns a lambda function initialized with the given p-number.
+
+1. p = the p-value to initialize the return function with.
+
+Usage:
+=MINKOWSKI(2)(X,Y) will calculate the EUCLIDEAN distance between X and Y. 
+=MINKOWSKI(1)(X,Y) will calculate the MANHATTAN distance between X and Y.
+*/
+MINKOWSKI = LAMBDA(p,LAMBDA(x,y,POWER(SUM(ABS((x-y)^p)),1/p)));
+
+
+/*
+EUCLIDEAN
+
+Calculates the Euclidean distance between 2 vectors x and y.
+
+1. x - a one-dimensional vector of real numbers
+2. y - a one-dimensional vector of real numbers with count(x)=count(y)
+
+Since Euclidean distance is a special case of Minkowski distance with p=2,
+we simply call MINKOWSKI to return a lambda function to which we pass the vectors
+x and y.
+*/
+EUCLIDEAN = LAMBDA(x,y,KNN.MINKOWSKI(2)(x,y));
+
+/*
+MANHATTAN
+
+Calculates the MANHATTAN distance between 2 vectors x and y.
+
+1. x - a one-dimensional vector of real numbers
+2. y - a one-dimensional vector of real numbers with count(x)=count(y)
+
+Since MANHATTAN distance is a special case of Minkowski distance with p=1,
+we simply call MINKOWSKI to return a lambda function to which we pass the vectors
+x and y.
+*/
+MANHATTAN = LAMBDA(x,y,KNN.MINKOWSKI(1)(x,y));
+
+/*
+CHEBYSHEV
+
+Calculates the CHEBYSHEV distance between 2 vectors x and y.
+
+1. x - a one-dimensional vector of real numbers
+2. y - a one-dimensional vector of real numbers with count(x)=count(y)
+
+CHEBYSHEV distance is the limit case of MINKOWSKI distance with p approaching infinity. 
+The limit is as shown for positive infinity and we could replace MAX with MIN for p
+approaching negative infinity.
+*/
+CHEBYSHEV = LAMBDA(x,y,MAX(ABS(x-y)));
+
+
+/*
+Type: Function
+
+Name: FREQUENCYTABLE
+
+Description: Calculates a simple frequency table of the values in a column
+
+Parameters:
+- data: A single column of data.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+FREQUENCYTABLE = LAMBDA(data,
+    LET(
+        d, INDEX(data,,1),
+        u,  UNIQUE(d),
+        X,  N(u = TRANSPOSE(d)),
+        Y,  SEQUENCE(ROWS(d), 1, 1, 0),
+        mp, MMULT(X,Y),
+        c,  CHOOSE({1,2}, u, mp),
+        SORT(c, 2, -1)
+    )
+);

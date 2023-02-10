@@ -1,0 +1,61 @@
+/*
+Type: Function
+
+Name: FILLTOTALS
+
+Description:
+A proposed solution to Alan Murray's challenge video https://www.youtube.com/watch?v=5ZL_DygRDm4
+
+Parameters:
+- data: a 3-column array of data as shown in the YT link above
+- Param2: Description of parameter 2 including expected type
+- [Param3]: Description of optional parameter 3 including default
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+FILLTOTALS =LAMBDA(data,
+  IF(
+    COLUMNS(data)<>3,NA(),
+    LET(
+      d,data,
+      idx,SEQUENCE(ROWS(d)),
+      rowheaders,INDEX(d,,1),/*The first column*/
+      units,INDEX(d,,2),/*So we can determine which rows are subtotals*/
+      people,FILTER(rowheaders,units=""),/*just the rowheaders for the total rows*/
+
+      /*For each total row, the row number where that subtotal is found, 
+      next to the row number where the next total is found - creates a "top" and "bottom" for the SUM*/
+      positions,XMATCH(CHOOSE({1,2},people,INDEX(people,XMATCH(people,people)+1)),rowheaders),
+
+      /*a function to find and sum rows from the source data based on row indexes*/
+      get_subs,LAMBDA(nums,BYROW(positions,LAMBDA(r,SUM(FILTER(NUMBERVALUE(nums),(idx>INDEX(r,1))*(idx<INDEX(r,2))))))),
+
+      /*a table of subtotals*/
+      subtotals,CHOOSE({1,2,3},people,get_subs(units),get_subs(INDEX(d,,3))),
+
+      /*get a sub total for a given name*/
+      get_a_sub,LAMBDA(rownum,colnum,
+                  LET(
+                    lookupval,INDEX(rowheaders,rownum),
+                    subtotalcol,INDEX(subtotals,,colnum),
+                    IF(
+                      lookupval="Grand Total",
+                      IF(colnum=1,"Grand Total",SUM(FILTER(subtotalcol,NOT(ISERROR(subtotalcol))))),
+                      XLOOKUP(lookupval,people,INDEX(subtotals,,colnum))
+                    )
+                  )
+                ),
+
+      /*Create an output array including the subtotals*/
+      output,MAKEARRAY(ROWS(d),COLUMNS(d),
+              LAMBDA(r,c,IF(INDEX(units,r)="",get_a_sub(r,c),"  "&INDEX(d,r,c)))
+            ),
+
+      /*Ensure numbers are formatted as numbers*/
+      IFERROR(NUMBERVALUE(output),output)
+    )
+  )
+);

@@ -1,0 +1,36 @@
+/*
+Type: Function
+
+Name: L
+
+Description: A wrapper of SEQUENCE to create simple lists of integers
+
+Parameters:
+- from: The first integer in the list.
+- to: The target integer in the list.
+- [step]: The difference between successive integers.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+L =LAMBDA(from,to,[step],
+    LET(
+        _step, IF(ISOMITTED(step), IF(from > to, -1, 1), step), 
+
+        //arguments should be single integers
+        _check, LAMBDA(x, OR(ROWS(x) + COLUMNS(x) <> 2, INT(x) <> x)), 
+        IF(
+            //if any of these are TRUE, then there's an array somewhere
+            //array = no bueno
+            OR(_check(from), _check(to), _check(_step)), 
+            #VALUE!,
+            LET(
+                _diff, MAX(from, to) - MIN(from, to),
+                _rows, ROUNDUP((_diff + 1) / ABS(_step), 0),
+                SEQUENCE( _rows, 1, from, _step)
+            )
+        )
+    )
+);

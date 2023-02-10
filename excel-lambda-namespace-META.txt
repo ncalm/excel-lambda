@@ -1,0 +1,42 @@
+/*
+Type: Namespace
+
+Name: META
+
+Description: Enables programmatic identification of functions by name.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+
+/*
+Type: Function
+
+Name: META.DATA
+
+Description: Creates a labelled array of metadata for a function.
+
+Parameters:
+- name: Name of the function for which you want to define metadata.
+- description: Description of the function for which you want to define metadata.
+- author: Author of the function for which you want to define metadata. 
+
+For usage, see the depn.bymonth, depn.byyear and depn.waterfall functions in the depn namespace.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+DATA = LAMBDA(name, description, author, 
+    HSTACK(
+        META.TITLES, 
+        VSTACK(
+            name,
+            description,
+            author))
+    );
+
+TITLES = {"name";"description";"author"};

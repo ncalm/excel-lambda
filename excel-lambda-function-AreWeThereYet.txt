@@ -1,0 +1,50 @@
+/*
+Type: Function
+
+Name: AreWeThereYet
+
+Description: A function that calculates how many days, hours, minutes, 
+working days and working hours are remaining between today and a given date.
+
+Parameters:
+- date: The date after today which you want to calculate a countdown to
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+AreWeThereYet = LAMBDA(date,
+    LET(
+        n, NOW(),
+        days, date - n,
+        countdown, INT(days) & " days, " &
+            TEXT(days, "h"" hours ""m"" minutes ""s"" seconds"""),
+        working_days, NETWORKDAYS(n, date),
+        working_hours, working_days * 8,
+        hours, days * 24,
+        minutes, days * 24 * 60,
+        vals, CHOOSE(
+            SEQUENCE(6),
+            countdown,
+            days,
+            hours,
+            minutes,
+            working_days,
+            working_hours
+        ),
+        titles, {
+            "countdown";
+            "total days";
+            "total hours";
+            "total minutes";
+            "total working days";
+            "total working hours"
+        },
+        MAKEARRAY(
+            6,
+            2,
+            LAMBDA(r, c, CHOOSE(c, INDEX(titles, r, 1), INDEX(vals, r, 1)))
+        )
+    )
+);

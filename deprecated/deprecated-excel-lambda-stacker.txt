@@ -1,0 +1,57 @@
+/*
+Type: Function|Namespace
+
+Name: The name of the function or namespace
+
+Description: The description of the function or namespace
+
+Parameters:
+- Param1: Description of parameter 1 including expected type
+- Param2: Description of parameter 2 including expected type
+- [Param3]: Description of optional parameter 3 including default
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*
+array is a column of stuff to which we want to apply element function
+row_function is some function that produces an array with a fixed number of columns
+  the column count produced by row_function must be identical regardless of input
+stack_function is one of V or H
+
+If you're unsure how these work or why we would use them, please review these videos:
+https://youtu.be/04jOeiMypXw
+https://youtu.be/wEBLT9QfQRw
+
+*/
+
+V = LAMBDA(one, two, VSTACK(one, two));
+
+H = LAMBDA(one, two, HSTACK(one, two));
+
+STACKER = LAMBDA([stack_function],
+    LAMBDA(row_function,
+        LAMBDA(array,
+            LET(
+                _stack_function, IF(ISOMITTED(stack_function), V, stack_function),
+                data, array,
+                seq, SEQUENCE(ROWS(data)),
+                firstrow, row_function(TAKE(data, 1)),
+                reducer, REDUCE(
+                    firstrow,
+                    DROP(seq, 1),
+                    LAMBDA(acc, curr,
+                        LET(thisrow, INDEX(data, curr), _stack_function(acc, row_function(thisrow)))
+                    )
+                ),
+                reducer
+            )
+        )
+    )
+);
+
+VSTACKER = STACKER(V);
+
+HSTACKER = STACKER(H);

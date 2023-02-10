@@ -1,0 +1,17 @@
+/*
+Type: Function|Namespace
+
+Name: The name of the function or namespace
+
+Description: The description of the function or namespace
+
+Parameters:
+- Param1: Description of parameter 1 including expected type
+- Param2: Description of parameter 2 including expected type
+- [Param3]: Description of optional parameter 3 including default
+
+Author: Owen Price
+
+Created: YYYY-MM-DD
+*/
+

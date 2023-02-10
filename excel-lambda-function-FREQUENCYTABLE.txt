@@ -1,0 +1,26 @@
+/*
+Type: Function
+
+Name: FREQUENCYTABLE
+
+Description: Calculates a simple frequency table of the values in a column
+
+Parameters:
+- data: A single column of data.
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+FREQUENCYTABLE = LAMBDA(data,
+    LET(
+        d, INDEX(data,,1),
+        u,  UNIQUE(d),
+        X,  N(u = TRANSPOSE(d)),
+        Y,  SEQUENCE(ROWS(d), 1, 1, 0),
+        mp, MMULT(X,Y),
+        c,  CHOOSE({1,2}, u, mp),
+        SORT(c, 2, -1)
+    )
+);

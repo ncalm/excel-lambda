@@ -1,0 +1,390 @@
+/*
+Type: Namespace
+
+Name: LAMB
+
+Description: Various utilities
+
+Author: Owen Price
+
+Created: 2023-02-09
+*/
+
+/*****************************************************************************************
+******************************************************************************************
+Array of functions
+******************************************************************************************
+
+Allows for creation of an array of functions which can be passed as a parameter to another function
+
+Original credit to: Travis Boulden
+
+https://www.mrexcel.com/board/threads/ifanyof.1184234/
+
+Function named "either" on that page
+
+In the code below, I have simplified slightly to use VSTACK instead of CHOOSE
+and SUM instead of REDUCE to calculate the count of not-omitted functions
+
+e.g. Apply the SQRT, LN and LOG_10 transformations to the wine vector:
+
+=LAMB.TRANSFORM(wine, LAMB.FUNCS(LAMB.SQRT, LAMB.LN, LAMB.LOG_10))
+
+Issue here is if we provide fn_1, don't provide fn_2, then provide fn_3, it will try to return
+an array containing fn_1 and fn_2
+*/
+FUNCS = LAMBDA(fn_1, [fn_2], [fn_3], [fn_4], [fn_5], [fn_6], [fn_7], [fn_8], [fn_9], [fn_10],
+    LET(
+        
+        //An array indicating which functions are omitted
+        omitted_fns, VSTACK(
+            ISOMITTED(fn_1),
+            ISOMITTED(fn_2),
+            ISOMITTED(fn_3),
+            ISOMITTED(fn_4),
+            ISOMITTED(fn_5),
+            ISOMITTED(fn_6),
+            ISOMITTED(fn_7),
+            ISOMITTED(fn_8),
+            ISOMITTED(fn_9),
+            ISOMITTED(fn_10)
+        ),
+        
+        //count of the not omitted functions
+        fn_ct, SUM(--NOT(omitted_fns)),
+        
+        //return the first fn_ct functions in an array
+        fns, CHOOSE(SEQUENCE(fn_ct), fn_1, fn_2, fn_3, fn_4, fn_5, fn_6, fn_7, fn_8, fn_9, fn_10),
+        fns
+    )
+);
+
+/*
+Select specific columns from a data table with a header
+*/
+SELECT = LAMBDA(data, columns,
+    LET(
+        _cn, TOROW(columns),
+        _h, TAKE(data, 1),
+        CHOOSECOLS(data, XMATCH(FILTER(_cn, _cn <> ""), _h))
+    )
+);
+
+FILTERAND = LAMBDA(data, filter_cols, filter_criteria,
+    LET(
+        //create an array of TRUE/FALSE with multiple columns
+        _bools, filter_cols = filter_criteria,
+        
+        //single-row array of 1..COLUMNS(_bools)
+        _columns, SEQUENCE(1, COLUMNS(_bools)),
+        
+        //multiple the boolean columns to produce a single boolean column 
+        _include, REDUCE(
+            TAKE(_bools, , 1),
+            DROP(_columns, , 1),
+            LAMBDA(a, b, a * CHOOSECOLS(_bools, b))
+        ),
+        
+        //return the filtered data
+        FILTER(data, _include)
+    )
+);
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+
+Apply a single function to each column in an array. 
+The function may produce multiple output columns per data-column
+
+This approach uses iteration. Other approaches are available :)
+*/
+BYCOL = LAMBDA(data, fn, [output],
+    LET(
+        //get the first column to apply the function to
+        _v, TAKE(data, , 1),
+        
+        //get the remaining columns
+        _rem, DROP(data, , 1),
+        
+        //apply the function to the first column and get the results
+        _applied, fn(_v),
+        
+        //stack the new results with the results of the previous columns (or nothing if this is first iteration)
+        _stacked, IF(ISOMITTED(output), _applied, HSTACK(output, _applied)),
+        
+        //if data currently only has one column, then just return the stack, otherwise iterate using _rem=data
+        _output, IF(COLUMNS(data) = 1, _stacked, LAMB.BYCOL(_rem, fn, _stacked)),
+        _output
+    )
+);
+
+/*****************************************************************************************
+******************************************************************************************
+Library of transformation lambdas
+******************************************************************************************
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Examples of simple vector transforms that can be applied sequentially using LAMB.TRANSFORM
+*/
+
+//Wraps the SQRT function as a lambda so it can be passed around other functions
+SQRT = LAMBDA(vector, SQRT(vector));
+
+//Wraps the LN function as a lambda so it can be passed around other functions
+LN = LAMBDA(vector, LN(vector));
+
+/*
+Returns a lambda of the LOG at the specified base
+
+The returned lambda can then be passed to other functions
+
+To create a "log base 10" function:
+=outlier.log(10)
+
+To use that function with a vector v:
+=outlier.log(10)(v)
+*/
+LOG = LAMBDA(base, LAMBDA(vector, LOG(vector, base)));
+
+//For simplicity, create a lambda function for applying the log10 transform to a vector
+LOG_10 = LAMBDA(vector, LAMB.LOG(10)(vector));
+
+//Returns a lambda function that raises a vector to the given power
+POWER = LAMBDA(exponent, LAMBDA(vector, POWER(vector, exponent)));
+
+RECIPROCAL = LAMBDA(vector, LAMB.POWER(-1)(vector));
+
+RECIPROCAL_SQ = LAMBDA(vector, LAMB.POWER(-2)(vector));
+
+CUBEROOT = LAMBDA(vector, LAMB.POWER(1 / 3)(vector));
+
+/*
+CSV
+
+Produces a CSV of 
+*/
+CSV = LAMBDA(data, [unique],
+    LET(
+        _u, IF(ISOMITTED(unique), TRUE, IF(unique = 0, FALSE, TRUE)),
+        TEXTJOIN(", ", FALSE, SORT(IF(_u, UNIQUE(data), data)))
+    )
+);
+
+/*
+SUM(measure),
+MIN(measure),
+MAX(measure),
+COUNTA(measure),
+COUNT(measure),
+AVERAGE(measure)
+*/
+SUM = LAMBDA(data, IFERROR(SUM(data), 0));
+
+MIN = LAMBDA(data, IFERROR(MIN(data), ""));
+
+MAX = LAMBDA(data, IFERROR(MAX(data), ""));
+
+COUNTA = LAMBDA(data, IFERROR(COUNTA(data), 0));
+
+COUNT = LAMBDA(data, IFERROR(COUNT(data), 0));
+
+AVERAGE = LAMBDA(data, IFERROR(AVERAGE(data), ""));
+
+AGG = LAMBDA(fn_name,
+    LET(
+        _f, LAMB.FUNCS(
+            LAMB.SUM,
+            LAMB.AVERAGE,
+            LAMB.MIN,
+            LAMB.MAX,
+            LAMB.CSV,
+            LAMB.COUNTA,
+            LAMB.COUNT
+        ),
+        _n, TOCOL({"sum", "average", "min", "max", "csv", "counta", "count"}),
+        XLOOKUP(LOWER(fn_name), _n, _f, LAMB.SUM)
+    )
+);
+
+/*
+Author: OWEN PRICE
+Date: 2022-08-27
+
+Used to transform a vector once for each transformation function in transform_fns
+
+e.g. transform the 'wine' vector using SQRT, LN and LOG10
+
+=LAMB.TRANSFORM(vector, LAMB.FUNCS(LAMB.SQRT, LAMB.LN, LAMB.LOG_10))
+
+*/
+TRANSFORM = LAMBDA(vector, transform_fns,
+    REDUCE(vector, transform_fns, LAMBDA(a, b, HSTACK(a, b(vector))))
+);
+
+/*
+BETWEEN
+Author: Owen Price
+Date: 2022-09-10
+
+Returns a lambda that itself returns TRUE if the vector value is >=gteq (the lower boundary)
+or the vector value is <=lteq (the upper boundary)
+*/
+BETWEEN = LAMBDA(gteq, lteq,
+    LAMBDA(vector, IFERROR(((vector >= gteq) * (vector <= lteq)) > 0, FALSE))
+);
+
+/*
+ROTATE
+Author: Owen Price
+Date: 2022-09-10
+
+Rotates a 2-dimensional array anti-clockwise by 90 degrees. 
+
+This is not the same behavior as TRANSPOSE, which reflects an array on the main diagonal
+from top-left to bottom-right.
+
+Inputs:
+- arr - the input array
+- times - the number of times to rotate by 90 degrees
+- [iter] - optional - used as a counter by the recursion
+
+Note: iter should not be used when calling this function from a spreadsheet
+*/
+ROTATE = LAMBDA(arr, times, [iter],
+    LET(
+        _times, MOD(times, 4),
+        IF(
+            _times = 0,
+            arr,
+            LET(
+                _iter, IF(ISOMITTED(iter), 1, iter),
+                _cols, COLUMNS(arr),
+                _rotated, INDEX(arr, SEQUENCE(1, ROWS(arr)), _cols - SEQUENCE(_cols) + 1),
+                IF(_iter = _times, _rotated, ROTATE(_rotated, _times, _iter + 1))
+            )
+        )
+    )
+);
+
+/*
+EMPTYARRAY creates a blank array with r rows and c columns, or 1 column if c is omitted. 
+
+Author: Owen Price
+Date: 2022-09-14
+*/
+EMPTYARRAY = LAMBDA(r, [c], EXPAND({""}, r, IF(ISOMITTED(c), 1, c), ""));
+
+/*
+CROSSJOIN creates the cross-product of two arrays
+
+Author: Owen Price
+Date: 2022-09-14
+*/
+CROSSJOIN = LAMBDA(array1, array2, [output],
+    LET(
+        _out, IF(ISOMITTED(output), LAMB.EMPTYARRAY(1, COLUMNS(array1) + COLUMNS(array2)), output),
+        _row, TAKE(array1, 1),
+        _fn, LAMBDA(row, array, HSTACK(CHOOSEROWS(row, SEQUENCE(ROWS(array), , , 0)), array)),
+        _join, VSTACK(_out, _fn(_row, array2)),
+        _output, IF(
+            ROWS(array1) = 1,
+            DROP(_join, 1),
+            LAMB.CROSSJOIN(DROP(array1, 1), array2, _join)
+        ),
+        _output
+    )
+);
+
+ADVANCEDFILTER = LAMBDA(data, criteria,
+    LET(
+        _d, DROP(data, 1),
+        _criteria, criteria,
+        _criteria_col_names, TAKE(_criteria, 1),
+        _header, TAKE(data, 1),
+        _criteria_cols, LAMB.SELECT(data, _criteria_col_names),
+        _bools, _criteria_cols = TAKE(_criteria, -1),
+        _columns, SEQUENCE(1, COLUMNS(_bools)),
+        _include, REDUCE(
+            TAKE(_bools, , 1),
+            DROP(_columns, , 1),
+            LAMBDA(a, b, a * CHOOSECOLS(_bools, b))
+        ),
+        _result, FILTER(data, _include),
+        VSTACK(_header, _result)
+    )
+);
+
+RECURSIVEFILTER = LAMBDA(dat, cols, crits, [has_header],
+    IF(
+        COLUMNS(cols) <> COLUMNS(crits),
+        "RECURSIVEFILTER ERROR: number of columns must match number of filter values",
+        LET(
+            /*if any coltypes are TYPE=2 (text), then assume they are names*/
+            cols_are_names, IF(ISOMITTED(has_header), FALSE, has_header),
+            
+            /*if cols are names, then find the positions of the columns using the row above the data*/
+            col_positions, IF(cols_are_names, XMATCH(cols, TAKE(dat, 1)), cols),
+            
+            /*get the first column position*/
+            thiscol, INDEX(dat, , INDEX(col_positions, 1, 1)),
+            
+            /*get the first criteria*/
+            thiscrit, INDEX(crits, 1, 1),
+            
+            /*apply the filter*/
+            filt, FILTER(dat, thiscol = thiscrit),
+            
+            /*if the number of column positions is greater than 1, this isn't the last criteria to apply
+      so call the function again, passing the remaining criteria into the next call.
+      If the number of column positions is 1, this is the last criteria, so return the output*/
+            output, IF(
+                COLUMNS(col_positions) > 1,
+                LAMB.RECURSIVEFILTER(
+                    filt,
+                    INDEX(col_positions, , SEQUENCE(1, COLUMNS(col_positions) - 1, 2)),
+                    INDEX(crits, , SEQUENCE(1, COLUMNS(crits) - 1, 2))
+                ),
+                filt
+            ),
+            output
+        )
+    )
+);
+
+VSTACK = LAMBDA(thing1, thing2, VSTACK(thing1, thing2));
+
+HSTACK = LAMBDA(thing1, thing2, HSTACK(thing1, thing2));
+
+/*
+array is a column of stuff to which we want to apply element function
+element_function is some logic that produces a row of of a fixed number of columns
+  the column count produced by element_function must be identical regardless of input
+stack_function is either LAMB.VSTACK or LAMB.HSTACK
+*/
+STACKER = LAMBDA([stack_function],
+    LAMBDA(element_function,
+        LAMBDA(array,
+            LET(
+                _stack_function, IF(ISOMITTED(stack_function), V, stack_function),
+                data, array,
+                seq, SEQUENCE(ROWS(data)),
+                firstrow, element_function(TAKE(data, 1)),
+                reducer, REDUCE(
+                    firstrow,
+                    DROP(seq, 1),
+                    LAMBDA(acc, curr,
+                        LET(thisrow, INDEX(data, curr), _stack_function(acc, element_function(thisrow)))
+                    )
+                ),
+                reducer
+            )
+        )
+    )
+);
+
+VSTACKER = LAMB.STACKER(LAMB.VSTACK);
+
+HSTACKER = LAMB.STACKER(LAMB.HSTACK);
