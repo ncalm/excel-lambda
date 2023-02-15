@@ -1,0 +1,227 @@
+/*
+Type: Function
+
+Name: FUNCS
+
+Description: Pass functions as arguments. Returns an array of those functions.
+
+Parameters:
+- fn_1..20: a lambda function
+*/
+FUNCS = LAMBDA(
+    fn_1,
+    [fn_2],
+    [fn_3],
+    [fn_4],
+    [fn_5],
+    [fn_6],
+    [fn_7],
+    [fn_8],
+    [fn_9],
+    [fn_10],
+    [fn_11],
+    [fn_12],
+    [fn_13],
+    [fn_14],
+    [fn_15],
+    [fn_16],
+    [fn_17],
+    [fn_18],
+    [fn_19],
+    [fn_20],
+    LET(
+        
+        //An array indicating which functions are omitted
+        omitted_fns, VSTACK(
+            ISOMITTED(fn_1),
+            ISOMITTED(fn_2),
+            ISOMITTED(fn_3),
+            ISOMITTED(fn_4),
+            ISOMITTED(fn_5),
+            ISOMITTED(fn_6),
+            ISOMITTED(fn_7),
+            ISOMITTED(fn_8),
+            ISOMITTED(fn_9),
+            ISOMITTED(fn_10),
+            ISOMITTED(fn_11),
+            ISOMITTED(fn_12),
+            ISOMITTED(fn_13),
+            ISOMITTED(fn_14),
+            ISOMITTED(fn_15),
+            ISOMITTED(fn_16),
+            ISOMITTED(fn_17),
+            ISOMITTED(fn_18),
+            ISOMITTED(fn_19),
+            ISOMITTED(fn_20)
+        ),
+        
+        //count of the not omitted functions
+        fn_ct, SUM(--NOT(omitted_fns)),
+        
+        //return the first fn_ct functions in an array
+        fns, CHOOSE(
+            SEQUENCE(fn_ct),
+            fn_1,
+            fn_2,
+            fn_3,
+            fn_4,
+            fn_5,
+            fn_6,
+            fn_7,
+            fn_8,
+            fn_9,
+            fn_10,
+            fn_11,
+            fn_12,
+            fn_13,
+            fn_14,
+            fn_15,
+            fn_16,
+            fn_17,
+            fn_18,
+            fn_19,
+            fn_20
+        ),
+        fns
+    )
+);
+
+SUM = LAMBDA(data, IFERROR(SUM(data), 0));
+
+MIN = LAMBDA(data, IFERROR(MIN(data), ""));
+
+MAX = LAMBDA(data, IFERROR(MAX(data), ""));
+
+COUNTA = LAMBDA(data, IFERROR(COUNTA(data), 0));
+
+COUNT = LAMBDA(data, IFERROR(COUNT(data), 0));
+
+AVERAGE = LAMBDA(data, IFERROR(AVERAGE(data), ""));
+
+STDEV_S = LAMBDA(data, IFERROR(STDEV.S(data), ""));
+
+STDERR = LAMBDA(data, IFERROR(STDEV.S(data) / SQRT(COUNT(data)), ""));
+
+KURT = LAMBDA(data, KURT(data));
+
+SKEW = LAMBDA(data, SKEW(data));
+
+VAR_S = LAMBDA(data, VAR.S(data));
+
+MODE = LAMBDA(data, MODE.SNGL(data));
+
+RANGE = LAMBDA(data, MAX(data) - MIN(data));
+
+CONFIDENCE = LAMBDA(level, LAMBDA(data, CONFIDENCE.T(level, STDEV.S(data), COUNT(data))));
+
+CONF95 = DEMO.CONFIDENCE(0.05);
+
+CONF90 = DEMO.CONFIDENCE(0.1);
+
+QUARTILE = LAMBDA(q, LAMBDA(data, QUARTILE.EXC(data, q)));
+
+QUARTILE1 = DEMO.QUARTILE(1);
+
+QUARTILE3 = DEMO.QUARTILE(3);
+
+MEDIAN = LAMBDA(data, MEDIAN(data));
+
+COUNTD = LAMBDA(data, COUNTA(UNIQUE(data)));
+
+ROWS = LAMBDA(data, ROWS(data));
+
+
+/*
+Type: Function
+
+Name: DESCRIBE
+
+Description: produces summary statistics on a column
+
+Parameters:
+- data: an array
+- has_header: a boolean indicating whether data has a header row or not
+- column: the column index in data for which we want summary statistics
+*/
+DESCRIBE = LAMBDA(data, has_header, column,
+    LET(
+        _data, IF(has_header, DROP(data, 1), data),
+        _measure, CHOOSECOLS(_data, column),
+        _header, IF(has_header, TAKE(data, 1), "Column " & SEQUENCE(1, COLUMNS(data))),
+        _stats, {
+            "Sum";
+            "Mean";
+            "Count";
+            "Mode";
+            "Standard Deviation";
+            "Sample Variance";
+            "Standard Error";
+            "Kurtosis";
+            "Skewness";
+            "Confidence Level(95.0%)";
+            "1st quartile";
+            "Median";
+            "3rd quartile";
+            "Range";
+            "Distinct count";
+            "Rows";
+            "Minimum";
+            "Maximum"
+        },
+        _funcs, DEMO.FUNCS(
+            DEMO.SUM,
+            DEMO.AVERAGE,
+            DEMO.COUNT,
+            DEMO.MODE,
+            DEMO.STDEV_S,
+            DEMO.VAR_S,
+            DEMO.STDERR,
+            DEMO.KURT,
+            DEMO.SKEW,
+            DEMO.CONF95,
+            DEMO.QUARTILE1,
+            DEMO.MEDIAN,
+            DEMO.QUARTILE3,
+            DEMO.RANGE,
+            DEMO.COUNTD,
+            DEMO.ROWS,
+            DEMO.MIN,
+            DEMO.MAX
+        ),
+        _agg_fn, DEMO.AGG(_funcs, _stats),
+        _row_fn, LAMBDA(_m, LAMBDA(_function_name, _agg_fn(_function_name)(_m))),
+        _vstacker, DEMO.VSTACKER(_row_fn(_measure)),
+        _a_column, _vstacker(_stats),
+        
+        //_output, BYROW(_stats, LAMBDA(r, _agg_fn(@r)(_measure))),
+        _output, HSTACK(_stats, _a_column),
+        _vstacker({"sum", "min"})(_measure)
+    )
+);
+
+/*
+Type: Function
+
+Name: AGG
+
+Description:
+Creates a function that enables lookup of an aggregate function using a text string
+
+e.g.
+
+AGGDEMO = 
+  AGG(DEMO.FUNCS(DEMO.SUM, DEMO.AVERAGE, DEMO.MIN, DEMO.MAX, DEMO.CSV, DEMO.COUNTA, DEMO.COUNT),
+    {"sum", "average", "min", "max", "csv", "counta", "count"})
+    
+Then:
+
+Returns the sum function:
+AGGDEMO("sum")
+
+Uses it:
+AGGDEMO("sum")(SEQUENCE(10)) = 55
+
+*/
+AGG = LAMBDA(functions, function_names,
+    LAMBDA(fn_name, XLOOKUP(LOWER(fn_name), TOCOL(function_names), TOCOL(functions), DEMO.SUM))
+);
