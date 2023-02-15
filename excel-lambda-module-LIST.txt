@@ -1,5 +1,5 @@
 /*
-Type: Namespace
+Type: Module
 
 Name: LIST
 
@@ -104,4 +104,5 @@ JOIN = LAMBDA([delimiter],
             TEXTJOIN(delim, FALSE, array)
         )
     )
+);
 );

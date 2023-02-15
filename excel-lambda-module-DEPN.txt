@@ -1,7 +1,7 @@
 /*
-Type: Namespace
+Type: Module
 
-Name: depn
+Name: DEPN
 
 Description: Contains functions used in the creation of depreciation schedules
 
@@ -35,24 +35,24 @@ https://gist.github.com/ncalm/643ebc018946542f8642c074043e510a
 */
 
 
-sln = LAMBDA(cost,salvage,life,periods,
+SLN = LAMBDA(cost,salvage,life,periods,
     IF(periods=0,0,SLN(cost,salvage,life))
 );
 
-db = LAMBDA(cost,salvage,life,periods,
+DB = LAMBDA(cost,salvage,life,periods,
     DB(cost,salvage,life,periods)
 );
 
-ddb = LAMBDA(cost,salvage,life,periods,
+DDB = LAMBDA(cost,salvage,life,periods,
     DDB(cost,salvage,life,periods)
 );
 
-syd = LAMBDA(cost,salvage,life,periods,
+SYD = LAMBDA(cost,salvage,life,periods,
     SYD(cost,salvage,life,periods)
 );
 
 
-bymonth = LAMBDA(periods,start,[return_metadata],
+BYMONTH = LAMBDA(periods,start,[return_metadata],
 
     LET(
         _return_metadata,IF(ISOMITTED(return_metadata),FALSE,return_metadata),
@@ -64,7 +64,7 @@ bymonth = LAMBDA(periods,start,[return_metadata],
     
 );
 
-byyear = LAMBDA(periods,start,[return_metadata],
+BYYEAR = LAMBDA(periods,start,[return_metadata],
 
     LET(
         _return_metadata,IF(ISOMITTED(return_metadata),FALSE,return_metadata),
@@ -78,7 +78,7 @@ byyear = LAMBDA(periods,start,[return_metadata],
 );
 
 
-schedule = LAMBDA(cost,salvage,periods,start,depn_fn,[vertical],[period_fn],[return_header],
+SCHEDULE = LAMBDA(cost,salvage,periods,start,depn_fn,[vertical],[period_fn],[return_header],
     LET(
         _v,IF(ISOMITTED(vertical),FALSE,vertical),
         _rh,IF(ISOMITTED(return_header),TRUE,return_header),
@@ -102,7 +102,7 @@ schedule = LAMBDA(cost,salvage,periods,start,depn_fn,[vertical],[period_fn],[ret
     )
 );
 
-schedule_stack = LAMBDA(asset_purchases_table,depn_fn,[period_fn],
+SCHEDULESTACK = LAMBDA(asset_purchases_table,depn_fn,[period_fn],
 
     LET(
         t, asset_purchases_table ,
@@ -182,7 +182,7 @@ schedule_stack = LAMBDA(asset_purchases_table,depn_fn,[period_fn],
 
 
 
-waterfall = LAMBDA(
+WATERFALL = LAMBDA(
     asset_purchases_table,
     depn_fn,
     start,
@@ -220,7 +220,7 @@ waterfall = LAMBDA(
                 listed in the control table, with the asset name in the first
                 column. 
                 */
-                ScheduleStack, depn.schedule_stack( t , depn_fn , PeriodFn ),
+                ScheduleStack, depn.schedulestack( t , depn_fn , PeriodFn ),
 
                 /*
                 For each asset in the table, create an array _periodcount rows tall
@@ -259,4 +259,5 @@ waterfall = LAMBDA(
     )
 
 
+);
 );

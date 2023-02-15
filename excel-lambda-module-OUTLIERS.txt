@@ -1,5 +1,5 @@
 /*
-Type: Namespace
+Type: Module
 
 Name: OUTLIER
 
@@ -151,4 +151,5 @@ TESTS =LAMBDA(vector,std_devs,transform_fns,[prefix],
 
     _tested
   )
+);
 );

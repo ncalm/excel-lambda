@@ -1,5 +1,5 @@
 /*
-Type: Namespace
+Type: Module
 
 Name: KNN
 
@@ -146,4 +146,5 @@ FREQUENCYTABLE = LAMBDA(data,
         c,  CHOOSE({1,2}, u, mp),
         SORT(c, 2, -1)
     )
+);
 );

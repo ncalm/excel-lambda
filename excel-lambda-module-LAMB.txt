@@ -1,5 +1,5 @@
 /*
-Type: Namespace
+Type: Module
 
 Name: LAMB
 
@@ -387,4 +387,4 @@ STACKER = LAMBDA([stack_function],
 
 VSTACKER = LAMB.STACKER(LAMB.VSTACK);
 
-HSTACKER = LAMB.STACKER(LAMB.HSTACK);
+HSTACKER = LAMB.STACKER(LAMB.HSTACK);K);

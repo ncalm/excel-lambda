@@ -1,7 +1,7 @@
 /*
 Type: Function
 
-Name: AreWeThereYet
+Name: AREWETHEREYET
 
 Description: A function that calculates how many days, hours, minutes, 
 working days and working hours are remaining between today and a given date.
@@ -14,7 +14,7 @@ Author: Owen Price
 Created: 2023-02-09
 */
 
-AreWeThereYet = LAMBDA(date,
+AREWETHEREYET = LAMBDA(date,
     LET(
         n, NOW(),
         days, date - n,
